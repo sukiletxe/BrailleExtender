@@ -70,21 +70,12 @@ profileFileExists = gesturesFileExists = False
 
 noMessageTimeout = True if 'noMessageTimeout' in config.conf["braille"] else False
 outputTables = inputTables = None
-preTable = []
-postTable = []
+preTables = []
+postTables = []
 if not os.path.exists(profilesDir): log.error('Profiles\' path not found')
 else: log.debug('Profiles\' path (%s) found' % profilesDir)
-try:
-	import brailleTables
-	tables = brailleTables.listTables()
-	tablesFN = [t[0] for t in brailleTables.listTables()]
-	tablesUFN = [t[0] for t in brailleTables.listTables() if not t.contracted and t.output]
-	tablesTR = [t[1] for t in brailleTables.listTables()]
-	noUnicodeTable = False
-except BaseException:
-	noUnicodeTable = True
 
-def getValidBrailleDisplayPrefered():
+def getValidBrailleDisplayPreferred():
 	l = braille.getDisplayList()
 	l.append(("last", _("last known")))
 	return l
@@ -147,11 +138,6 @@ def getConfspec():
 			"backup_tetherTo": 'string(default="focus")',
 			"backup_autoTether": "boolean(default=True)",
 		},
-		"inputTableShortcuts": 'string(default="?")',
-		"inputTables": 'string(default="%s")' % config.conf["braille"]["inputTable"] + ", unicode-braille.utb",
-		"outputTables": "string(default=%s)" % config.conf["braille"]["translationTable"],
-		"tabSpace": "boolean(default=False)",
-		f"tabSize_{curBD}": "integer(min=1, default=2, max=42)",
 		"undefinedCharsRepr": {
 			"method": f"integer(min=0, default=8)",
 			"hardSignPatternValue": "string(default=??)",
@@ -166,7 +152,6 @@ def getConfspec():
 			"table": "string(default=current)",
 			"characterLimit": "integer(min=0, default=2048)",
 		},
-		"postTable": 'string(default="None")',
 		"viewSaved": "string(default=%s)" % NOVIEWSAVED,
 		"reviewModeTerminal": "boolean(default=True)",
 		"features": {
@@ -259,7 +244,7 @@ def getConfspec():
 			}
 		},
 		"quickLaunches": {},
-		"brailleTables": {},
+		"roleLabels": {},
 		"advancedInputMode": {
 			"stopAfterOneChar": "boolean(default=True)",
 			"escapeSignUnicodeValue": "string(default=⠼)",
@@ -271,6 +256,14 @@ def getConfspec():
 		"advanced": {
 			"refreshForegroundObjNameChange": "boolean(default=False)",
 			"fixCursorPositions": "boolean(default=True)",
+		},
+		"tables": {
+			"groups": {},
+			"shortcuts": 'string(default="?")',
+			"preferredInput": f'string(default="{config.conf["braille"]["inputTable"]}|unicode-braille.utb")',
+			"preferredOutput": f'string(default="{config.conf["braille"]["translationTable"]}")',
+			"tabSpace": "boolean(default=False)",
+			f"tabSize_{curBD}": "integer(min=1, default=2, max=42)",
 		},
 	}
 
@@ -317,8 +310,6 @@ def loadConf():
 		if curBD != "noBraille": log.warn("%s inaccessible" % confGen)
 		else: log.debug("No braille display present")
 	setRightMarginCells()
-	if not noUnicodeTable: loadPreferedTables()
-	if config.conf["brailleExtender"]["inputTableShortcuts"] not in tablesUFN: config.conf["brailleExtender"]["inputTableShortcuts"] = '?'
 	return True
 
 def setRightMarginCells():
@@ -384,11 +375,6 @@ def initGestures():
 					iniGestures["globalCommands.GlobalCommands"][g])).replace('br(' + curBD + '):', '')] = g
 	return gesturesFileExists, iniGestures
 
-def isContractedTable(table):
-	if not table in tablesFN: return False
-	tablePos = tablesFN.index(table)
-	if brailleTables.listTables()[tablePos].contracted: return True
-	return False
 
 def getKeyboardLayout():
 	if (config.conf["brailleExtender"]["keyboardLayout_%s" % curBD] is not None
@@ -396,8 +382,6 @@ def getKeyboardLayout():
 		return iniProfile['keyboardLayouts'].keys().index(config.conf["brailleExtender"]["keyboardLayout_%s" % curBD])
 	return 0
 
-def getCustomBrailleTables():
-	return [config.conf["brailleExtender"]["brailleTables"][k].split('|', 3) for k in config.conf["brailleExtender"]["brailleTables"]]
 
 def getTabSize():
 	size = config.conf["brailleExtender"]["tabSize_%s" % curBD]
